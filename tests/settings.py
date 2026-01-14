@@ -1,0 +1,27 @@
+"""
+Django settings for running tests.
+"""
+
+SECRET_KEY = "test-secret-key-for-django-magic-authorize"
+
+INSTALLED_APPS = [
+    "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "django_magic_authorize",
+]
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+    }
+}
+
+USE_TZ = True
+
+# Required for URL resolution
+ROOT_URLCONF = "tests.urls"
+
+MIDDLEWARE = [
+    "django_magic_authorize.middleware.MagicAuthMiddleware",
+]

@@ -1,3 +1,4 @@
+import uuid
 from django.http.response import HttpResponseForbidden
 from django.db.models import F
 from django.utils import timezone
@@ -25,19 +26,11 @@ class MagicAuthRouter(object):
 
 def walk_patterns(patterns, router, prefix=""):
     for pattern in patterns:
-        # check if we're dealing with a URLResolver
         if hasattr(pattern, "url_patterns"):
             new_prefix = prefix + str(pattern.pattern)
-
-            if hasattr(pattern, "_magic_authorize_protected"):
-                # register prefix - all paths under it are protected
-                router.register(new_prefix)
-
-            # recurse
             walk_patterns(pattern.url_patterns, router, new_prefix)
-        # handle straight up URLPatterns
         else:
-            if hasattr(pattern.callback, "_magic_protected"):
+            if hasattr(pattern.callback, "_magic_authorize_protected"):
                 full_path = prefix + str(pattern.pattern)
                 router.register(full_path)
 
