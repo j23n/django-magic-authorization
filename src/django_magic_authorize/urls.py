@@ -13,6 +13,7 @@ def url_protect(url):
     """
     pass
 
+
 def path_protect(route, view, **kwargs):
     """
     Wrap a URL path to require magic token authorization.
@@ -22,7 +23,7 @@ def path_protect(route, view, **kwargs):
 
         urlpatterns = [
             path_protect("private/<int:year>/<str:slug>", views.private_view),
-        ] 
+        ]
     """
     django_path = path(route, view, **kwargs)
     setattr(django_path, "_django_magic_authorize", True)

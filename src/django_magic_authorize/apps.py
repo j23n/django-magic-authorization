@@ -8,4 +8,5 @@ class DjangoMagicAuthorizeConfig(AppConfig):
     def ready(self):
         # discover all protected URL paths after initialization
         from django_magic_authorize.middleware import discover_protected_paths
+
         discover_protected_paths()

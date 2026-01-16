@@ -51,6 +51,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
 
     def get_access_link(self, obj):
         return f"{obj.path}?token={obj.token}"
+
     get_access_link.short_description = "Access Link"
 
 

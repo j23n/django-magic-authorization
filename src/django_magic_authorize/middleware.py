@@ -1,10 +1,15 @@
 import uuid
+import logging
+
 from django.http.response import HttpResponseForbidden
 from django.db.models import F
 from django.utils import timezone
 from django.urls import get_resolver
 from django.urls.resolvers import RoutePattern
 from django_magic_authorize.models import AccessToken
+
+
+logger = logging.getLogger(__name__)
 
 
 class MagicAuthRouter(object):
@@ -51,7 +56,6 @@ class MagicAuthRouter(object):
                 self.register(prefix, upattern.pattern)
 
 
-
 def discover_protected_paths():
     router = MagicAuthRouter()
     resolver = get_resolver()
@@ -86,11 +90,13 @@ class MagicAuthMiddleware(object):
             return self.get_response(request)
 
         if (user_token := request.GET.get("token")) is None:
+            logger.warning(f"Access denied to {path}: no token provided")
             return HttpResponseForbidden("Access denied: No token provided")
 
         try:
             uuid_token = uuid.UUID(user_token)
         except ValueError:
+            logger.warning(f"Access denied to {path}: invalid token")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         if not (
@@ -98,6 +104,7 @@ class MagicAuthMiddleware(object):
                 token=uuid_token, is_valid=True, path=protected_path
             )
         ).exists():
+            logger.warning(f"Access denied to {path}: invalid token")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         db_token.update(
