@@ -3,6 +3,7 @@ from django.http.response import HttpResponseForbidden
 from django.db.models import F
 from django.utils import timezone
 from django.urls import get_resolver
+from django.urls.resolvers import RoutePattern
 from django_magic_authorize.models import AccessToken
 
 
@@ -15,30 +16,46 @@ class MagicAuthRouter(object):
         return cls._instance
 
     def __init__(self):
+        # __init__ is called, even using the singleton pattern
         if not hasattr(self, "_registry"):
             self._registry = set()
 
-    def register(self, path):
-        if not path.startswith("/"):
-            path = "/" + path
-        self._registry.add(path)
+    def register(self, prefix: str, pattern: RoutePattern):
+        self._registry.add((prefix, pattern))
 
+    def get_protected_paths(self):
+        return [prefix + str(pattern) for prefix, pattern in self._registry]
 
-def walk_patterns(patterns, router, prefix=""):
-    for pattern in patterns:
-        if hasattr(pattern, "url_patterns"):
-            new_prefix = prefix + str(pattern.pattern)
-            walk_patterns(pattern.url_patterns, router, new_prefix)
-        else:
-            if hasattr(pattern.callback, "_magic_authorize_protected"):
-                full_path = prefix + str(pattern.pattern)
-                router.register(full_path)
+    def walk_patterns(self, url_patterns, prefix=""):
+        """
+        Walk the URLPatterns and URLResolvers from django.urls.get_resolver.url_patterns.
+
+        There are two "patterns" to deal with here. The first is the URLPattern,
+        the other the RoutePattern. The latter is the url string: "/home" or
+        "/blog/<int:year>/<str:slug>". It is contained within the first, which also
+        includes the view and possibly a namespace."
+        """
+        for upattern in url_patterns:
+            # check if we're dealing with a URLResolver
+            if hasattr(upattern, "url_patterns"):
+                if hasattr(upattern, "_django_magic_authorize"):
+                    # register prefix - all paths under it are protected
+                    self.register(prefix, upattern.pattern)
+                else:
+                    # recurse into the URLResolver to find protected
+                    # URLPatterns
+                    new_prefix = prefix + str(upattern.pattern)
+                    self.walk_patterns(upattern.url_patterns, new_prefix)
+            # handle URLPatterns
+            if hasattr(upattern, "_django_magic_authorize"):
+                self.register(prefix, upattern.pattern)
+
 
 
 def discover_protected_paths():
     router = MagicAuthRouter()
     resolver = get_resolver()
-    walk_patterns(resolver.url_patterns, router)
+    router.walk_patterns(resolver.url_patterns)
 
 
 class MagicAuthMiddleware(object):
@@ -49,9 +66,20 @@ class MagicAuthMiddleware(object):
         reg = MagicAuthRouter()._registry
 
         protected_path = None
-        for path in reg:
-            if request.path.startswith(path):
-                protected_path = path
+        for prefix, pattern in reg:
+            path_without_prefix = request.path.removeprefix(prefix).lstrip("/")
+            match = pattern.match(path_without_prefix)
+
+            # determine if this is a protected path, with boundary checking
+            # e.g. handle "/admin" vs "/admin-something"
+            if match:
+                remaining_path, _, _ = match
+
+                if not str(pattern).endswith("/"):
+                    if remaining_path and not remaining_path.startswith("/"):
+                        continue
+
+                protected_path = prefix + str(pattern)
                 break
 
         if not protected_path:
