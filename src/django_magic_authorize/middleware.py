@@ -86,19 +86,19 @@ class MagicAuthMiddleware(object):
             return self.get_response(request)
 
         if (user_token := request.GET.get("token")) is None:
-            return HttpResponseForbidden()
+            return HttpResponseForbidden("Access denied: No token provided")
 
         try:
             uuid_token = uuid.UUID(user_token)
         except ValueError:
-            return HttpResponseForbidden()
+            return HttpResponseForbidden("Access denied: Invalid token")
 
         if not (
             db_token := AccessToken.objects.filter(
                 token=uuid_token, is_valid=True, path=protected_path
             )
         ).exists():
-            return HttpResponseForbidden()
+            return HttpResponseForbidden("Access denied: Invalid token")
 
         db_token.update(
             last_accessed=timezone.now(), times_accessed=F("times_accessed") + 1
