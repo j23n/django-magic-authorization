@@ -54,6 +54,7 @@ class MagicAuthRouter(object):
             # handle URLPatterns
             if hasattr(upattern, "_django_magic_authorize"):
                 self.register(prefix, upattern.pattern)
+        logger.debug(f"Parsed protected paths {self.get_protected_paths()}")
 
 
 def discover_protected_paths():
@@ -87,16 +88,17 @@ class MagicAuthMiddleware(object):
                 break
 
         if not protected_path:
+            logger.debug(f"Access granted to {request.path}: not a protected path")
             return self.get_response(request)
 
         if (user_token := request.GET.get("token")) is None:
-            logger.warning(f"Access denied to {path}: no token provided")
+            logger.info(f"Access denied to {request.path}: no token provided")
             return HttpResponseForbidden("Access denied: No token provided")
 
         try:
             uuid_token = uuid.UUID(user_token)
         except ValueError:
-            logger.warning(f"Access denied to {path}: invalid token")
+            logger.info(f"Access denied to {request.path}: invalid token")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         if not (
@@ -104,10 +106,11 @@ class MagicAuthMiddleware(object):
                 token=uuid_token, is_valid=True, path=protected_path
             )
         ).exists():
-            logger.warning(f"Access denied to {path}: invalid token")
+            logger.info(f"Access denied to {request.path}: invalid token")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         db_token.update(
             last_accessed=timezone.now(), times_accessed=F("times_accessed") + 1
         )
+        logger.debug(f"Access granted to {protected_path} with token {uuid_token}")
         return self.get_response(request)
