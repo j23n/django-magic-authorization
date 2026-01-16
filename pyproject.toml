@@ -14,5 +14,7 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.0.2",
     "pytest-django>=4.11.1",
+    "ruff>=0.14.13",
+    "ty>=0.0.12",
 ]
 
