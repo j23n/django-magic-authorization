@@ -7,6 +7,9 @@ SECRET_KEY = "test-secret-key-for-django-magic-authorize"
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.auth",
+    "django.contrib.admin",
+    "django.contrib.sessions",
+    "django.contrib.messages",
     "django_magic_authorize",
 ]
 

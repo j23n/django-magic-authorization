@@ -8,7 +8,10 @@ from django_magic_authorize.middleware import (
     discover_protected_paths,
     MagicAuthMiddleware,
 )
+from django_magic_authorize.admin import AccessTokenForm, AccessTokenAdmin
 from django_magic_authorize.models import AccessToken
+from django.contrib.admin.sites import AdminSite
+
 import uuid
 
 
@@ -328,3 +331,69 @@ class MagicAuthRouterTests(TestCase):
         router2 = MagicAuthRouter()
         registry_paths = router2.get_protected_paths()
         self.assertIn("test/", registry_paths)
+
+
+class AdminTests(TestCase):
+    """Test Django admin interface for AccessToken."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = AccessTokenAdmin(AccessToken, self.site)
+
+        router = MagicAuthRouter()
+        router._registry.clear()
+        test_pattern = RoutePattern("protected/", name=None)
+        router.register("", test_pattern)
+
+        self.token = AccessToken.objects.create(
+            description="Test token",
+            path="protected/",
+            is_valid=True,
+        )
+
+    def test_get_access_link_generates_correct_url(self):
+        """get_access_link should generate correct URL with token."""
+        link = self.admin.get_access_link(self.token)
+        expected = f"protected/?token={self.token.token}"
+        self.assertEqual(link, expected)
+
+    def test_display_path_shows_registered_path(self):
+        """display_path should show path normally when registered."""
+        display = self.admin.display_path(self.token)
+        self.assertEqual(display, "protected/")
+        self.assertNotIn("❗", display)
+
+    def test_display_path_shows_warning_for_unregistered_path(self):
+        """display_path should show warning for unregistered paths."""
+        self.token.path = "unregistered/"
+        self.token.save()
+        display = self.admin.display_path(self.token)
+        self.assertIn("❗", display)
+        self.assertIn("unregistered/", display)
+
+    def test_access_token_form_path_choice_includes_protected_paths(self):
+        """AccessTokenForm path_choice should include all protected paths from router."""
+        from django_magic_authorize.admin import AccessTokenForm
+
+        router = MagicAuthRouter()
+        api_pattern = RoutePattern("api/", name=None)
+        router.register("", api_pattern)
+
+        form = AccessTokenForm()
+        choices = [choice[0] for choice in form.fields["path_choice"].choices]
+
+        self.assertIn("protected/", choices)
+        self.assertIn("api/", choices)
+
+    def test_access_token_form_save_populates_path_from_choice(self):
+        """AccessTokenForm should populate path field from path_choice on save."""
+        form_data = {
+            "description": "New token",
+            "path_choice": "protected/",
+            "is_valid": True,
+        }
+
+        form = AccessTokenForm(data=form_data)
+        if form.is_valid():
+            token = form.save()
+            self.assertEqual(token.path, "protected/")

@@ -8,7 +8,7 @@ from django_magic_authorize.middleware import MagicAuthRouter
 class AccessTokenForm(forms.ModelForm):
     def get_routes():
         router = MagicAuthRouter()
-        return ((p, p) for p in router._registry)
+        return ((p, p) for p in router.get_protected_paths())
 
     path_choice = forms.ChoiceField(choices=get_routes)
 
@@ -28,6 +28,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
         "description",
         "display_path",
         "is_valid",
+        "get_access_link",
         "created_at",
         "last_accessed",
         "times_accessed",
@@ -37,15 +38,20 @@ class AccessTokenAdmin(admin.ModelAdmin):
         "last_accessed",
         "times_accessed",
         "token",
+        "get_access_link",
     )
     form = AccessTokenForm
 
     def display_path(self, obj):
         router = MagicAuthRouter()
-        if obj.path not in router._registry:
+        if obj.path not in router.get_protected_paths():
             return f"❗ {obj.path}"
         else:
             return obj.path
+
+    def get_access_link(self, obj):
+        return f"{obj.path}?token={obj.token}"
+    get_access_link.short_description = "Access Link"
 
 
 admin.site.register(AccessToken, AccessTokenAdmin)
