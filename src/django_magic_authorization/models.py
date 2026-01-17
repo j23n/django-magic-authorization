@@ -17,4 +17,4 @@ class AccessToken(models.Model):
         return f"{self.description} ({self.path})"
 
     def __repr__(self):
-        return f"AccessToken: {self.description} ({self.path})>"
+        return f"<AccessToken: {self.description} ({self.path})>"
