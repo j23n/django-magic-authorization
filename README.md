@@ -24,7 +24,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
   ...
-  "django_magic_authorization.middleware.MagicAuthorizeMiddleware",
+  "django_magic_authorization.middleware.MagicAuthorizationMiddleware",
   ...
 ]
 
