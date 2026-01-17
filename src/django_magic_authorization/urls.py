@@ -7,24 +7,24 @@ def url_protect(url):
     want to protect all matching patterns of a URL path.
 
     Usage:
-        from django_magic_authorize.urls import url_protect
+        from django_magic_authorization.urls import url_protect
 
         url_protect("/blog/2024/10/a-post-that-shouldnt-be-public")
     """
     pass
 
 
-def path_protect(route, view, **kwargs):
+def protected_path(route, view, **kwargs):
     """
     Wrap a URL path to require magic token authorization.
 
     Usage:
-        from django_magic_authorize.urls import path_protect
+        from django_magic_authorization.urls import protected_path
 
         urlpatterns = [
-            path_protect("private/<int:year>/<str:slug>", views.private_view),
+            protected_path("private/<int:year>/<str:slug>", views.private_view),
         ]
     """
     django_path = path(route, view, **kwargs)
-    setattr(django_path, "_django_magic_authorize", True)
+    setattr(django_path, "_django_magic_authorization", True)
     return django_path

@@ -1,21 +1,23 @@
 from django.contrib import admin
 from django import forms
 
-from django_magic_authorize.models import AccessToken
-from django_magic_authorize.middleware import MagicAuthRouter
+from django_magic_authorization.models import AccessToken
+from django_magic_authorization.middleware import MagicAuthorizationRouter
 
 
 class AccessTokenForm(forms.ModelForm):
     def get_routes():
-        router = MagicAuthRouter()
+        router = MagicAuthorizationRouter()
         return ((p, p) for p in router.get_protected_paths())
 
     path_choice = forms.ChoiceField(choices=get_routes)
 
     def save(self, commit=True):
-        path_choice = self.cleaned_data.pop("path_choice")
-        self.cleaned_data["path"] = path_choice
-        return super().save(commit=commit)
+        instance = super().save(commit=False)
+        instance.path = self.cleaned_data.get("path_choice")
+        if commit:
+            instance.save()
+        return instance
 
     class Meta:
         model = AccessToken
@@ -43,7 +45,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
     form = AccessTokenForm
 
     def display_path(self, obj):
-        router = MagicAuthRouter()
+        router = MagicAuthorizationRouter()
         if obj.path not in router.get_protected_paths():
             return f"❗ {obj.path}"
         else:

@@ -2,7 +2,7 @@
 Django settings for running tests.
 """
 
-SECRET_KEY = "test-secret-key-for-django-magic-authorize"
+SECRET_KEY = "test-secret-key-for-django-magic-authorization"
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -10,7 +10,7 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "django_magic_authorize",
+    "django_magic_authorization",
 ]
 
 DATABASES = {
@@ -26,5 +26,5 @@ USE_TZ = True
 ROOT_URLCONF = "tests.urls"
 
 MIDDLEWARE = [
-    "django_magic_authorize.middleware.MagicAuthMiddleware",
+    "django_magic_authorization.middleware.MagicAuthorizationMiddleware",
 ]

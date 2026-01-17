@@ -1,5 +1,5 @@
 [project]
-name = "django-magic-authorize"
+name = "django-magic-authorization"
 version = "0.1.0"
 description = "Add magic authorization links to your django project."
 readme = "README.md"

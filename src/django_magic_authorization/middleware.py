@@ -6,13 +6,13 @@ from django.db.models import F
 from django.utils import timezone
 from django.urls import get_resolver
 from django.urls.resolvers import RoutePattern
-from django_magic_authorize.models import AccessToken
+from django_magic_authorization.models import AccessToken
 
 
 logger = logging.getLogger(__name__)
 
 
-class MagicAuthRouter(object):
+class MagicAuthorizationRouter(object):
     _instance = None
 
     def __new__(cls):
@@ -43,7 +43,7 @@ class MagicAuthRouter(object):
         for upattern in url_patterns:
             # check if we're dealing with a URLResolver
             if hasattr(upattern, "url_patterns"):
-                if hasattr(upattern, "_django_magic_authorize"):
+                if hasattr(upattern, "_django_magic_authorization"):
                     # register prefix - all paths under it are protected
                     self.register(prefix, upattern.pattern)
                 else:
@@ -52,23 +52,23 @@ class MagicAuthRouter(object):
                     new_prefix = prefix + str(upattern.pattern)
                     self.walk_patterns(upattern.url_patterns, new_prefix)
             # handle URLPatterns
-            if hasattr(upattern, "_django_magic_authorize"):
+            if hasattr(upattern, "_django_magic_authorization"):
                 self.register(prefix, upattern.pattern)
         logger.debug(f"Parsed protected paths {self.get_protected_paths()}")
 
 
 def discover_protected_paths():
-    router = MagicAuthRouter()
+    router = MagicAuthorizationRouter()
     resolver = get_resolver()
     router.walk_patterns(resolver.url_patterns)
 
 
-class MagicAuthMiddleware(object):
+class MagicAuthorizationMiddleware(object):
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        reg = MagicAuthRouter()._registry
+        reg = MagicAuthorizationRouter()._registry
 
         protected_path = None
         for prefix, pattern in reg:
@@ -92,13 +92,13 @@ class MagicAuthMiddleware(object):
             return self.get_response(request)
 
         if (user_token := request.GET.get("token")) is None:
-            logger.info(f"Access denied to {request.path}: no token provided")
+            logger.error(f"Access denied to {request.path}: no token provided")
             return HttpResponseForbidden("Access denied: No token provided")
 
         try:
             uuid_token = uuid.UUID(user_token)
         except ValueError:
-            logger.info(f"Access denied to {request.path}: invalid token")
+            logger.error(f"Access denied to {request.path}: could not parse token {user_token}")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         if not (
@@ -106,7 +106,7 @@ class MagicAuthMiddleware(object):
                 token=uuid_token, is_valid=True, path=protected_path
             )
         ).exists():
-            logger.info(f"Access denied to {request.path}: invalid token")
+            logger.error(f"Access denied to {request.path}: invalid token {uuid_token}")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         db_token.update(
@@ -114,3 +114,4 @@ class MagicAuthMiddleware(object):
         )
         logger.debug(f"Access granted to {protected_path} with token {uuid_token}")
         return self.get_response(request)
+

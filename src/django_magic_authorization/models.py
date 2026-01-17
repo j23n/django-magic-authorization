@@ -12,3 +12,9 @@ class AccessToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=False, blank=False)
     times_accessed = models.IntegerField(default=0)
     last_accessed = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.description} ({self.path})"
+
+    def __repr__(self):
+        return f"AccessToken: {self.description} ({self.path})>"
