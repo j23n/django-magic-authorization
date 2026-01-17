@@ -98,7 +98,9 @@ class MagicAuthorizationMiddleware(object):
         try:
             uuid_token = uuid.UUID(user_token)
         except ValueError:
-            logger.error(f"Access denied to {request.path}: could not parse token {user_token}")
+            logger.error(
+                f"Access denied to {request.path}: could not parse token {user_token}"
+            )
             return HttpResponseForbidden("Access denied: Invalid token")
 
         if not (
@@ -114,4 +116,3 @@ class MagicAuthorizationMiddleware(object):
         )
         logger.debug(f"Access granted to {protected_path} with token {uuid_token}")
         return self.get_response(request)
-

@@ -19,21 +19,30 @@ class PathProtectTests(TestCase):
 
     def test_protected_path_flags_view(self):
         """protected_path() should set _django_magic_authorization flag on the pattern."""
-        view = lambda request: HttpResponse("test")
+
+        def view(request):
+            return HttpResponse("test")
+
         pattern = protected_path("test/", view)
         self.assertTrue(hasattr(pattern, "_django_magic_authorization"))
         self.assertTrue(pattern._django_magic_authorization)
 
     def test_protected_path_returns_urlpattern(self):
         """protected_path() should return a URLPattern object."""
-        view = lambda request: HttpResponse("test")
+
+        def view(request):
+            return HttpResponse("test")
+
         pattern = protected_path("test/", view)
         self.assertEqual(str(pattern.pattern), "test/")
         self.assertEqual(pattern.callback, view)
 
     def test_protected_path_with_kwargs(self):
         """protected_path() should pass through kwargs to path()."""
-        view = lambda request: HttpResponse("test")
+
+        def view(request):
+            return HttpResponse("test")
+
         pattern = protected_path("test/", view, name="test_name")
         self.assertEqual(pattern.name, "test_name")
 
@@ -86,7 +95,9 @@ class MiddlewareTokenValidationTests(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.middleware = MagicAuthorizationMiddleware(get_response=lambda r: HttpResponse("OK"))
+        self.middleware = MagicAuthorizationMiddleware(
+            get_response=lambda r: HttpResponse("OK")
+        )
 
         router = MagicAuthorizationRouter()
         router._registry.clear()
@@ -372,6 +383,3 @@ class AdminTests(TestCase):
 
     def test_access_token_form_path_choice_includes_protected_paths(self):
         """AccessTokenForm path_choice should include all protected paths from router."""
-        from django_magic_authorization.admin import AccessTokenForm
-
-        router = MagicAuthorizationRouter
