@@ -361,9 +361,9 @@ class AdminTests(TestCase):
             is_valid=True,
         )
 
-    def test_get_access_link_generates_correct_url(self):
-        """get_access_link should generate correct URL with token."""
-        link = self.admin.get_access_link(self.token)
+    def test_access_link_generates_correct_url(self):
+        """access_link should generate correct URL with token."""
+        link = self.admin.access_link(self.token)
         expected = f"protected/?token={self.token.token}"
         self.assertEqual(link, expected)
 

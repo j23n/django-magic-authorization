@@ -30,7 +30,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
         "description",
         "display_path",
         "is_valid",
-        "get_access_link",
+        "access_link",
         "created_at",
         "last_accessed",
         "times_accessed",
@@ -40,9 +40,11 @@ class AccessTokenAdmin(admin.ModelAdmin):
         "last_accessed",
         "times_accessed",
         "token",
-        "get_access_link",
+        "access_link",
     )
     form = AccessTokenForm
+    list_filter = ["is_valid", "created_at"]
+    search_fields = ["description", "path"]
 
     def display_path(self, obj):
         router = MagicAuthorizationRouter()
@@ -51,10 +53,12 @@ class AccessTokenAdmin(admin.ModelAdmin):
         else:
             return obj.path
 
-    def get_access_link(self, obj):
+    display_path.short_description = "Path"
+
+    def access_link(self, obj):
         return f"{obj.path}?token={obj.token}"
 
-    get_access_link.short_description = "Access Link"
+    access_link.short_description = "Access Link"
 
 
 admin.site.register(AccessToken, AccessTokenAdmin)
