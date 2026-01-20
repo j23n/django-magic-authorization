@@ -1,5 +1,6 @@
 import uuid
 import logging
+from urllib.parse import quote
 
 from django.http.response import HttpResponseForbidden
 from django.db.models import F
@@ -70,13 +71,13 @@ class MagicAuthorizationMiddleware(object):
     def __call__(self, request):
         reg = MagicAuthorizationRouter()._registry
 
+
+        # determine if this is a protected path
         protected_path = None
         for prefix, pattern, protect_fn in reg:
             path_without_prefix = request.path.removeprefix(prefix).lstrip("/")
             match = pattern.match(path_without_prefix)
 
-            # determine if this is a protected path, with boundary checking
-            # e.g. handle "/admin" vs "/admin-something"
             if match:
                 remaining_path, args, kwargs= match
 
@@ -99,10 +100,14 @@ class MagicAuthorizationMiddleware(object):
             logger.debug(f"Access granted to {request.path}: not a protected path")
             return self.get_response(request)
 
-        if (user_token := request.GET.get("token")) is None:
+        cookie_key = f"django_magic_authorization_{quote(protected_path, safe='')}"
+
+        user_token = request.GET.get("token") or request.COOKIES.get(cookie_key)
+        if user_token is None:
             logger.info(f"Access denied to {request.path}: no token provided")
             return HttpResponseForbidden("Access denied: No token provided")
 
+        # Token validation
         try:
             uuid_token = uuid.UUID(user_token)
         except ValueError:
@@ -119,8 +124,21 @@ class MagicAuthorizationMiddleware(object):
             logger.info(f"Access denied to {request.path}: invalid token {uuid_token}")
             return HttpResponseForbidden("Access denied: Invalid token")
 
+        # Update token stats
         db_token.update(
             last_accessed=timezone.now(), times_accessed=F("times_accessed") + 1
         )
+
+        # Set the cookie for future auth
+        response = self.get_response(request)
+        response.set_cookie(
+            key=cookie_key,
+            value=uuid_token,
+            max_age=60*60*24*365,
+            httponly=True,
+            secure=True,
+            samesite="lax"
+        )
+        
         logger.debug(f"Access granted to {protected_path} with token {uuid_token}")
-        return self.get_response(request)
+        return response
