@@ -1,4 +1,4 @@
-# Django Magic Authorize
+# Django Magic Authorization
 
 This middleware adds simple token-based authorization for private content to any Django project.
 
