@@ -16,35 +16,41 @@ import uuid
 
 class PathProtectTests(TestCase):
     """Test the protected_path() URL wrapper function."""
+    def view(request):
+        return HttpResponse("test")
 
     def test_protected_path_flags_view(self):
         """protected_path() should set _django_magic_authorization flag on the pattern."""
-
-        def view(request):
-            return HttpResponse("test")
-
-        pattern = protected_path("test/", view)
+        pattern = protected_path("test/", PathProtectTests.view)
         self.assertTrue(hasattr(pattern, "_django_magic_authorization"))
         self.assertTrue(pattern._django_magic_authorization)
 
     def test_protected_path_returns_urlpattern(self):
         """protected_path() should return a URLPattern object."""
-
-        def view(request):
-            return HttpResponse("test")
-
-        pattern = protected_path("test/", view)
+        pattern = protected_path("test/", PathProtectTests.view)
         self.assertEqual(str(pattern.pattern), "test/")
-        self.assertEqual(pattern.callback, view)
+        self.assertEqual(pattern.callback, PathProtectTests.view)
 
     def test_protected_path_with_kwargs(self):
         """protected_path() should pass through kwargs to path()."""
-
-        def view(request):
-            return HttpResponse("test")
-
-        pattern = protected_path("test/", view, name="test_name")
+        pattern = protected_path("test/", PathProtectTests.view, name="test_name")
         self.assertEqual(pattern.name, "test_name")
+
+    def test_protected_path_with_protect_fn(self):
+        """protected_path() should set _django_magic_authorization_fn attribute."""
+
+        def protect_fn(kwargs):
+            return kwargs.get("visibility") == "private"
+
+        pattern = protected_path("<str:visibility>/test/", PathProtectTests.view, protect_fn=protect_fn)
+        self.assertTrue(hasattr(pattern, "_django_magic_authorization_fn"))
+        self.assertEqual(pattern._django_magic_authorization_fn, protect_fn)
+
+    def test_protected_path_without_protect_fn(self):
+        """protected_path() should set _django_magic_authorization_fn to None when not provided."""
+        pattern = protected_path("test/", PathProtectTests.view)
+        self.assertTrue(hasattr(pattern, "_django_magic_authorization_fn"))
+        self.assertIsNone(pattern._django_magic_authorization_fn)
 
 
 class URLTreeWalkerTests(TestCase):
@@ -319,6 +325,105 @@ class MiddlewareTokenValidationTests(TestCase):
         response = self.middleware(request)
 
         self.assertEqual(response.status_code, 200)
+
+    def test_middleware_protect_fn_allows_non_matching_variant(self):
+        """Middleware with protect_fn should allow non-matching URL variants without token."""
+        router = MagicAuthorizationRouter()
+
+        def protect_fn(kwargs):
+            return kwargs.get("visibility") == "private"
+
+        content_pattern = RoutePattern("<str:visibility>/<str:post>/", name=None)
+        router.register("", content_pattern, protect_fn=protect_fn)
+
+        # Public variant should not require token
+        request = self.factory.get("/public/my-post/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_middleware_protect_fn_blocks_matching_variant_without_token(self):
+        """Middleware with protect_fn should block matching URL variants without token."""
+        router = MagicAuthorizationRouter()
+
+        def protect_fn(kwargs):
+            return kwargs.get("visibility") == "private"
+
+        content_pattern = RoutePattern("<str:visibility>/<str:post>/", name=None)
+        router.register("", content_pattern, protect_fn=protect_fn)
+
+        # Private variant should require token
+        request = self.factory.get("/private/my-post/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_middleware_protect_fn_allows_matching_variant_with_valid_token(self):
+        """Middleware with protect_fn should allow matching variants with valid token."""
+        router = MagicAuthorizationRouter()
+
+        def protect_fn(kwargs):
+            return kwargs.get("visibility") == "private"
+
+        content_pattern = RoutePattern("<str:visibility>/<str:post>/", name=None)
+        router.register("", content_pattern, protect_fn=protect_fn)
+
+        valid_token = AccessToken.objects.create(
+            description="Private content token",
+            path="<str:visibility>/<str:post>/",
+            is_valid=True,
+        )
+
+        # Private variant with valid token should work
+        request = self.factory.get(f"/private/my-post/?token={valid_token.token}")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_middleware_protect_fn_with_complex_logic(self):
+        """Middleware should handle protect_fn with complex conditional logic."""
+        router = MagicAuthorizationRouter()
+
+        def protect_fn(kwargs):
+            visibility = kwargs.get("visibility")
+            category = kwargs.get("category", "")
+            return visibility == "private" or category == "confidential"
+
+        content_pattern = RoutePattern("<str:visibility>/<str:category>/<str:post>/", name=None)
+        router.register("", content_pattern, protect_fn=protect_fn)
+
+        # Should allow public/general/my-post
+        request = self.factory.get("/public/general/my-post/")
+        response = self.middleware(request)
+        self.assertEqual(response.status_code, 200)
+
+        # Should block private/general/my-post (visibility=private)
+        request = self.factory.get("/private/general/my-post/")
+        response = self.middleware(request)
+        self.assertEqual(response.status_code, 403)
+
+        # Should block public/confidential/my-post (category=confidential)
+        request = self.factory.get("/public/confidential/my-post/")
+        response = self.middleware(request)
+        self.assertEqual(response.status_code, 403)
+
+    def test_middleware_protect_fn_exception_fails_safe(self):
+        """Middleware should fail safe (protect) when protect_fn raises exception."""
+        router = MagicAuthorizationRouter()
+
+        def protect_fn(kwargs):
+            # This will raise KeyError if 'visibility' is missing
+            return kwargs["visibility"] == "private"
+
+        # Pattern without visibility parameter - will cause exception
+        content_pattern = RoutePattern("<str:post>/", name=None)
+        router.register("", content_pattern, protect_fn=protect_fn)
+
+        # Should fail safe and protect the path
+        request = self.factory.get("/my-post/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 403)
 
 
 class MagicAuthorizationRouterTests(TestCase):

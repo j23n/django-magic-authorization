@@ -4,6 +4,7 @@ from django.apps import AppConfig
 class DjangoMagicAuthorizeConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "django_magic_authorization"
+    verbose_name = "Django Magic Authorization"
 
     def ready(self):
         # discover all protected URL paths after initialization

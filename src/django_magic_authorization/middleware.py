@@ -25,11 +25,11 @@ class MagicAuthorizationRouter(object):
         if not hasattr(self, "_registry"):
             self._registry = set()
 
-    def register(self, prefix: str, pattern: RoutePattern):
-        self._registry.add((prefix, pattern))
+    def register(self, prefix: str, pattern: RoutePattern, protect_fn=None):
+        self._registry.add((prefix, pattern, protect_fn))
 
     def get_protected_paths(self):
-        return [prefix + str(pattern) for prefix, pattern in self._registry]
+        return [prefix + str(pattern) for prefix, pattern, _ in self._registry]
 
     def walk_patterns(self, url_patterns, prefix=""):
         """
@@ -45,7 +45,7 @@ class MagicAuthorizationRouter(object):
             if hasattr(upattern, "url_patterns"):
                 if hasattr(upattern, "_django_magic_authorization"):
                     # register prefix - all paths under it are protected
-                    self.register(prefix, upattern.pattern)
+                    self.register(prefix, upattern.pattern, upattern._django_magic_authorization_fn)
                 else:
                     # recurse into the URLResolver to find protected
                     # URLPatterns
@@ -53,7 +53,7 @@ class MagicAuthorizationRouter(object):
                     self.walk_patterns(upattern.url_patterns, new_prefix)
             # handle URLPatterns
             if hasattr(upattern, "_django_magic_authorization"):
-                self.register(prefix, upattern.pattern)
+                self.register(prefix, upattern.pattern, upattern._django_magic_authorization_fn)
         logger.debug(f"Parsed protected paths {self.get_protected_paths()}")
 
 
@@ -71,18 +71,26 @@ class MagicAuthorizationMiddleware(object):
         reg = MagicAuthorizationRouter()._registry
 
         protected_path = None
-        for prefix, pattern in reg:
+        for prefix, pattern, protect_fn in reg:
             path_without_prefix = request.path.removeprefix(prefix).lstrip("/")
             match = pattern.match(path_without_prefix)
 
             # determine if this is a protected path, with boundary checking
             # e.g. handle "/admin" vs "/admin-something"
             if match:
-                remaining_path, _, _ = match
+                remaining_path, args, kwargs= match
 
                 if not str(pattern).endswith("/"):
                     if remaining_path and not remaining_path.startswith("/"):
                         continue
+
+                # check custom protect function matched values
+                if protect_fn:
+                    try:
+                        if not protect_fn(kwargs):
+                            continue
+                    except Exception as e:
+                        logger.error(f"Error evaluating protect function for path {request.path}: {e}")
 
                 protected_path = prefix + str(pattern)
                 break
