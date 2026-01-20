@@ -46,6 +46,14 @@ class AccessTokenAdmin(admin.ModelAdmin):
     list_filter = ["is_valid", "created_at"]
     search_fields = ["description", "path"]
 
+    def changelist_view(self, request, extra_context=None):
+        self._request = request
+        return super().changelist_view(request, extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        self._request = request
+        return super().change_view(request, object_id, form_url, extra_context)
+
     def display_path(self, obj):
         router = MagicAuthorizationRouter()
         if obj.path not in router.get_protected_paths():
@@ -56,6 +64,12 @@ class AccessTokenAdmin(admin.ModelAdmin):
     display_path.short_description = "Path"
 
     def access_link(self, obj):
+        if hasattr(self, '_request') and self._request:
+            relative_url = f"{obj.path}?token={obj.token}"
+            # Ensure path starts with /
+            if not relative_url.startswith('/'):
+                relative_url = f"/{relative_url}"
+            return self._request.build_absolute_uri(relative_url)
         return f"{obj.path}?token={obj.token}"
 
     access_link.short_description = "Access Link"
