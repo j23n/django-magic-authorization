@@ -9,7 +9,6 @@ from django.urls import get_resolver
 from django.urls.resolvers import RoutePattern
 from django_magic_authorization.models import AccessToken
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +45,11 @@ class MagicAuthorizationRouter(object):
             if hasattr(upattern, "url_patterns"):
                 if hasattr(upattern, "_django_magic_authorization"):
                     # register prefix - all paths under it are protected
-                    self.register(prefix, upattern.pattern, upattern._django_magic_authorization_fn)
+                    self.register(
+                        prefix,
+                        upattern.pattern,
+                        upattern._django_magic_authorization_fn,
+                    )
                 else:
                     # recurse into the URLResolver to find protected
                     # URLPatterns
@@ -54,7 +57,9 @@ class MagicAuthorizationRouter(object):
                     self.walk_patterns(upattern.url_patterns, new_prefix)
             # handle URLPatterns
             if hasattr(upattern, "_django_magic_authorization"):
-                self.register(prefix, upattern.pattern, upattern._django_magic_authorization_fn)
+                self.register(
+                    prefix, upattern.pattern, upattern._django_magic_authorization_fn
+                )
         logger.debug(f"Parsed protected paths {self.get_protected_paths()}")
 
 
@@ -71,7 +76,6 @@ class MagicAuthorizationMiddleware(object):
     def __call__(self, request):
         reg = MagicAuthorizationRouter()._registry
 
-
         # determine if this is a protected path
         protected_path = None
         for prefix, pattern, protect_fn in reg:
@@ -79,7 +83,7 @@ class MagicAuthorizationMiddleware(object):
             match = pattern.match(path_without_prefix)
 
             if match:
-                remaining_path, args, kwargs= match
+                remaining_path, args, kwargs = match
 
                 if not str(pattern).endswith("/"):
                     if remaining_path and not remaining_path.startswith("/"):
@@ -91,7 +95,9 @@ class MagicAuthorizationMiddleware(object):
                         if not protect_fn(kwargs):
                             continue
                     except Exception as e:
-                        logger.error(f"Error evaluating protect function for path {request.path}: {e}")
+                        logger.error(
+                            f"Error evaluating protect function for path {request.path}: {e}"
+                        )
 
                 protected_path = prefix + str(pattern)
                 break
@@ -134,11 +140,11 @@ class MagicAuthorizationMiddleware(object):
         response.set_cookie(
             key=cookie_key,
             value=uuid_token,
-            max_age=60*60*24*365,
+            max_age=60 * 60 * 24 * 365,
             httponly=True,
             secure=True,
-            samesite="lax"
+            samesite="lax",
         )
-        
+
         logger.debug(f"Access granted to {protected_path} with token {uuid_token}")
         return response

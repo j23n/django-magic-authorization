@@ -16,6 +16,7 @@ import uuid
 
 class PathProtectTests(TestCase):
     """Test the protected_path() URL wrapper function."""
+
     def view(request):
         return HttpResponse("test")
 
@@ -42,7 +43,9 @@ class PathProtectTests(TestCase):
         def protect_fn(kwargs):
             return kwargs.get("visibility") == "private"
 
-        pattern = protected_path("<str:visibility>/test/", PathProtectTests.view, protect_fn=protect_fn)
+        pattern = protected_path(
+            "<str:visibility>/test/", PathProtectTests.view, protect_fn=protect_fn
+        )
         self.assertTrue(hasattr(pattern, "_django_magic_authorization_fn"))
         self.assertEqual(pattern._django_magic_authorization_fn, protect_fn)
 
@@ -197,7 +200,9 @@ class MiddlewareTokenValidationTests(TestCase):
         # Check cookie is set (protected/ is URL-encoded as protected%2F)
         cookie_key = "django_magic_authorization_protected%2F"
         self.assertIn(cookie_key, response.cookies)
-        self.assertEqual(str(response.cookies[cookie_key].value), str(self.valid_token.token))
+        self.assertEqual(
+            str(response.cookies[cookie_key].value), str(self.valid_token.token)
+        )
 
     def test_middleware_cookie_settings(self):
         """Middleware should set cookie with correct security settings."""
@@ -211,13 +216,15 @@ class MiddlewareTokenValidationTests(TestCase):
         self.assertTrue(cookie["httponly"])
         self.assertTrue(cookie["secure"])
         self.assertEqual(cookie["samesite"], "lax")
-        self.assertEqual(cookie["max-age"], 60*60*24*365)  # 1 year
+        self.assertEqual(cookie["max-age"], 60 * 60 * 24 * 365)  # 1 year
 
     def test_middleware_allows_access_with_valid_cookie(self):
         """Middleware should allow access with valid cookie (no token in URL)."""
         # Create request with cookie, no token in URL
         request = self.factory.get("/protected/")
-        request.COOKIES["django_magic_authorization_protected%2F"] = str(self.valid_token.token)
+        request.COOKIES["django_magic_authorization_protected%2F"] = str(
+            self.valid_token.token
+        )
 
         response = self.middleware(request)
         self.assertEqual(response.status_code, 200)
@@ -261,7 +268,9 @@ class MiddlewareTokenValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         # Cookie should be set for the pattern, not the specific URL
-        cookie_key = "django_magic_authorization_blog%2F%3Cint%3Ayear%3E%2F%3Cstr%3Aslug%3E%2F"
+        cookie_key = (
+            "django_magic_authorization_blog%2F%3Cint%3Ayear%3E%2F%3Cstr%3Aslug%3E%2F"
+        )
         self.assertIn(cookie_key, response.cookies)
 
     def test_middleware_cookie_works_across_pattern_variants(self):
@@ -283,7 +292,9 @@ class MiddlewareTokenValidationTests(TestCase):
 
         # Access different post with cookie only (no token in URL)
         request2 = self.factory.get("/blog/2025/second-post/")
-        request2.COOKIES["django_magic_authorization_blog%2F%3Cint%3Ayear%3E%2F%3Cstr%3Aslug%3E%2F"] = str(blog_token.token)
+        request2.COOKIES[
+            "django_magic_authorization_blog%2F%3Cint%3Ayear%3E%2F%3Cstr%3Aslug%3E%2F"
+        ] = str(blog_token.token)
         response2 = self.middleware(request2)
 
         # Should work because cookie is scoped to the pattern
@@ -490,7 +501,9 @@ class MiddlewareTokenValidationTests(TestCase):
             category = kwargs.get("category", "")
             return visibility == "private" or category == "confidential"
 
-        content_pattern = RoutePattern("<str:visibility>/<str:category>/<str:post>/", name=None)
+        content_pattern = RoutePattern(
+            "<str:visibility>/<str:category>/<str:post>/", name=None
+        )
         router.register("", content_pattern, protect_fn=protect_fn)
 
         # Should allow public/general/my-post

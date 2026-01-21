@@ -50,7 +50,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
         self._request = request
         return super().changelist_view(request, extra_context)
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
+    def change_view(self, request, object_id, form_url="", extra_context=None):
         self._request = request
         return super().change_view(request, object_id, form_url, extra_context)
 
@@ -64,10 +64,10 @@ class AccessTokenAdmin(admin.ModelAdmin):
     display_path.short_description = "Path"
 
     def access_link(self, obj):
-        if hasattr(self, '_request') and self._request:
+        if hasattr(self, "_request") and self._request:
             relative_url = f"{obj.path}?token={obj.token}"
             # Ensure path starts with /
-            if not relative_url.startswith('/'):
+            if not relative_url.startswith("/"):
                 relative_url = f"/{relative_url}"
             return self._request.build_absolute_uri(relative_url)
         return f"{obj.path}?token={obj.token}"

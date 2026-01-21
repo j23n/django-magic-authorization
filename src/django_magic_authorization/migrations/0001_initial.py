@@ -8,21 +8,28 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='AccessToken',
+            name="AccessToken",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('description', models.CharField(max_length=255)),
-                ('path', models.CharField(max_length=255)),
-                ('token', models.UUIDField(default=uuid.uuid4, unique=True)),
-                ('is_valid', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('times_accessed', models.IntegerField(default=0)),
-                ('last_accessed', models.DateTimeField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("description", models.CharField(max_length=255)),
+                ("path", models.CharField(max_length=255)),
+                ("token", models.UUIDField(default=uuid.uuid4, unique=True)),
+                ("is_valid", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("times_accessed", models.IntegerField(default=0)),
+                ("last_accessed", models.DateTimeField(blank=True, null=True)),
             ],
         ),
     ]
