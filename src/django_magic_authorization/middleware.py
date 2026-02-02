@@ -114,20 +114,12 @@ class MagicAuthorizationMiddleware(object):
             return HttpResponseForbidden("Access denied: No token provided")
 
         # Token validation
-        try:
-            uuid_token = uuid.UUID(user_token)
-        except ValueError:
-            logger.info(
-                f"Access denied to {request.path}: could not parse token {user_token}"
-            )
-            return HttpResponseForbidden("Access denied: Invalid token")
-
         if not (
             db_token := AccessToken.objects.filter(
-                token=uuid_token, is_valid=True, path=protected_path
+                token=user_token, is_valid=True, path=protected_path
             )
         ).exists():
-            logger.info(f"Access denied to {request.path}: invalid token {uuid_token}")
+            logger.info(f"Access denied to {request.path}: invalid token {user_token}")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         # Update token stats
@@ -139,12 +131,12 @@ class MagicAuthorizationMiddleware(object):
         response = self.get_response(request)
         response.set_cookie(
             key=cookie_key,
-            value=uuid_token,
+            value=user_token,
             max_age=60 * 60 * 24 * 365,
             httponly=True,
             secure=True,
             samesite="lax",
         )
 
-        logger.debug(f"Access granted to {protected_path} with token {uuid_token}")
+        logger.debug(f"Access granted to {protected_path} with token {user_token}")
         return response
