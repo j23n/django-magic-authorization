@@ -539,6 +539,86 @@ class MiddlewareTokenValidationTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_middleware_blocks_prefixed_path_without_token(self):
+        """Middleware should block paths registered with a non-empty prefix (from include())."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("secret/", name=None)
+        router.register("api/v1/", pattern)
+
+        request = self.factory.get("/api/v1/secret/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_middleware_allows_prefixed_path_with_valid_token(self):
+        """Middleware should allow prefixed paths with a valid token."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("secret/", name=None)
+        router.register("api/v1/", pattern)
+
+        token = AccessToken.objects.create(
+            description="Prefixed path token",
+            path="api/v1/secret/",
+            is_valid=True,
+        )
+
+        request = self.factory.get(f"/api/v1/secret/?token={token.token}")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_middleware_blocks_deeply_nested_prefixed_path(self):
+        """Middleware should block deeply nested prefixed paths without token."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("deep/", name=None)
+        router.register("top/mid/", pattern)
+
+        request = self.factory.get("/top/mid/deep/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_middleware_allows_unrelated_path_with_similar_prefix(self):
+        """Middleware should not block paths that don't match the prefix + pattern."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("secret/", name=None)
+        router.register("api/v1/", pattern)
+
+        request = self.factory.get("/api/v2/secret/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_middleware_prefixed_dynamic_pattern(self):
+        """Middleware should block prefixed dynamic patterns without token."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("<int:year>/<str:slug>/", name=None)
+        router.register("blog/", pattern)
+
+        request = self.factory.get("/blog/2024/my-post/")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_middleware_prefixed_path_sets_cookie(self):
+        """Middleware should set cookie with correct path key for prefixed paths."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("secret/", name=None)
+        router.register("api/v1/", pattern)
+
+        token = AccessToken.objects.create(
+            description="Prefixed cookie test",
+            path="api/v1/secret/",
+            is_valid=True,
+        )
+
+        request = self.factory.get(f"/api/v1/secret/?token={token.token}")
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+        cookie_key = "django_magic_authorization_api%2Fv1%2Fsecret%2F"
+        self.assertIn(cookie_key, response.cookies)
+
 
 class MagicAuthorizationRouterTests(TestCase):
     """Test the MagicAuthorizationRoutersingleton."""

@@ -79,7 +79,7 @@ class MagicAuthorizationMiddleware(object):
         # determine if this is a protected path
         protected_path = None
         for prefix, pattern, protect_fn in reg:
-            path_without_prefix = request.path.removeprefix(prefix).lstrip("/")
+            path_without_prefix = request.path.lstrip("/").removeprefix(prefix)
             match = pattern.match(path_without_prefix)
 
             if match:
