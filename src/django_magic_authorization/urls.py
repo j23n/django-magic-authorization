@@ -17,7 +17,7 @@ def protected_path(route, view, protect_fn=None, **kwargs):
         urlpatterns = [
             protected_path("private/", views.private_view),
             protected_path(
-                "<str:visibility>/<int:pk>,
+                "<str:visibility>/<int:pk>",
                 views.detail_view,
                 protect_fn=lambda kwargs: kwargs["visibility"] == "private"
             ),

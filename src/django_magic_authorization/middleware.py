@@ -11,7 +11,7 @@ from django_magic_authorization.models import AccessToken
 logger = logging.getLogger(__name__)
 
 
-class MagicAuthorizationRouter(object):
+class MagicAuthorizationRouter:
     _instance = None
 
     def __new__(cls):
@@ -55,7 +55,7 @@ class MagicAuthorizationRouter(object):
                     new_prefix = prefix + str(upattern.pattern)
                     self.walk_patterns(upattern.url_patterns, new_prefix)
             # handle URLPatterns
-            if hasattr(upattern, "_django_magic_authorization"):
+            elif hasattr(upattern, "_django_magic_authorization"):
                 self.register(
                     prefix, upattern.pattern, upattern._django_magic_authorization_fn
                 )
@@ -68,7 +68,7 @@ def discover_protected_paths():
     router.walk_patterns(resolver.url_patterns)
 
 
-class MagicAuthorizationMiddleware(object):
+class MagicAuthorizationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -97,6 +97,7 @@ class MagicAuthorizationMiddleware(object):
                         logger.error(
                             f"Error evaluating protect function for path {request.path}: {e}"
                         )
+                        # Fail safe: treat path as protected
 
                 protected_path = prefix + str(pattern)
                 break

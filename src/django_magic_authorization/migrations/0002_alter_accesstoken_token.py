@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             model_name="accesstoken",
             name="token",
             field=models.CharField(
-                default=django_magic_authorization.models.AccessToken.gen_token,
+                default=django_magic_authorization.models._gen_token,
                 max_length=64,
                 unique=True,
             ),
