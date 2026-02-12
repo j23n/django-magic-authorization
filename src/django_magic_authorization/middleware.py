@@ -1,7 +1,7 @@
 import logging
 from urllib.parse import quote
 
-from django.http.response import HttpResponseForbidden
+from django.http.response import HttpResponseForbidden, HttpResponseRedirect
 from django.db.models import F
 from django.utils import timezone
 from django.urls import get_resolver
@@ -109,7 +109,9 @@ class MagicAuthorizationMiddleware:
 
         cookie_key = f"{get_setting('COOKIE_PREFIX')}{quote(protected_path, safe='')}"
 
-        user_token = request.GET.get(get_setting("TOKEN_PARAM")) or request.COOKIES.get(cookie_key)
+        token_param = get_setting("TOKEN_PARAM")
+        query_token = request.GET.get(token_param)
+        user_token = query_token or request.COOKIES.get(cookie_key)
         if user_token is None:
             logger.info(f"Access denied to {request.path}: no token provided")
             return HttpResponseForbidden("Access denied: No token provided")
@@ -128,8 +130,18 @@ class MagicAuthorizationMiddleware:
             last_accessed=timezone.now(), times_accessed=F("times_accessed") + 1
         )
 
+        if query_token:
+            # Redirect to strip the token from the URL
+            query_dict = request.GET.copy()
+            query_dict.pop(token_param)
+            redirect_url = request.path
+            if query_dict:
+                redirect_url += "?" + query_dict.urlencode()
+            response = HttpResponseRedirect(redirect_url)
+        else:
+            response = self.get_response(request)
+
         # Set the cookie for future auth
-        response = self.get_response(request)
         response.set_cookie(
             key=cookie_key,
             value=user_token,

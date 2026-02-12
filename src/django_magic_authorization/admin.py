@@ -3,6 +3,7 @@ from django import forms
 
 from django_magic_authorization.models import AccessToken
 from django_magic_authorization.middleware import MagicAuthorizationRouter
+from django_magic_authorization.settings import get_setting
 
 
 class AccessTokenForm(forms.ModelForm):
@@ -64,13 +65,14 @@ class AccessTokenAdmin(admin.ModelAdmin):
     display_path.short_description = "Path"
 
     def access_link(self, obj):
+        token_param = get_setting("TOKEN_PARAM")
         if hasattr(self, "_request") and self._request:
-            relative_url = f"{obj.path}?token={obj.token}"
+            relative_url = f"{obj.path}?{token_param}={obj.token}"
             # Ensure path starts with /
             if not relative_url.startswith("/"):
                 relative_url = f"/{relative_url}"
             return self._request.build_absolute_uri(relative_url)
-        return f"{obj.path}?token={obj.token}"
+        return f"{obj.path}?{token_param}={obj.token}"
 
     access_link.short_description = "Access Link"
 

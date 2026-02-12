@@ -150,11 +150,12 @@ class MiddlewareTokenValidationTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_middleware_allows_valid_token(self):
-        """Middleware should allow access with valid token."""
+        """Middleware should redirect to strip token from URL on valid query-param token."""
         request = self.factory.get(f"/protected/?token={self.valid_token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/protected/")
 
     def test_middleware_blocks_invalid_token(self):
         """Middleware should block access when token is marked invalid."""
@@ -188,16 +189,16 @@ class MiddlewareTokenValidationTests(TestCase):
 
         self.valid_token.refresh_from_db()
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(self.valid_token.times_accessed, 1)
         self.assertIsNotNone(self.valid_token.last_accessed)
 
     def test_middleware_sets_cookie_on_valid_token(self):
-        """Middleware should set cookie after successful token validation."""
+        """Middleware should set cookie on redirect response after query-param validation."""
         request = self.factory.get(f"/protected/?token={self.valid_token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         # Check cookie is set (protected/ is URL-encoded as protected%2F)
         cookie_key = "django_magic_authorization_protected%2F"
         self.assertIn(cookie_key, response.cookies)
@@ -247,7 +248,31 @@ class MiddlewareTokenValidationTests(TestCase):
         request.COOKIES["django_magic_authorization_protected%2F"] = str(fake_uuid)
 
         response = self.middleware(request)
-        # Should succeed because URL token is valid
+        # Should succeed because URL token is valid (redirect to strip token)
+        self.assertEqual(response.status_code, 302)
+
+    def test_middleware_redirect_preserves_extra_query_params(self):
+        """Middleware should preserve other query params when stripping token on redirect."""
+        request = self.factory.get(
+            f"/protected/?foo=bar&token={self.valid_token.token}&baz=qux"
+        )
+        response = self.middleware(request)
+
+        self.assertEqual(response.status_code, 302)
+        location = response["Location"]
+        self.assertIn("/protected/", location)
+        self.assertIn("foo=bar", location)
+        self.assertIn("baz=qux", location)
+        self.assertNotIn("token=", location)
+
+    def test_middleware_cookie_access_returns_200(self):
+        """Middleware should return 200 (no redirect) when token comes from cookie."""
+        request = self.factory.get("/protected/")
+        request.COOKIES["django_magic_authorization_protected%2F"] = str(
+            self.valid_token.token
+        )
+        response = self.middleware(request)
+
         self.assertEqual(response.status_code, 200)
 
     def test_middleware_cookie_scoped_to_protected_path(self):
@@ -267,7 +292,7 @@ class MiddlewareTokenValidationTests(TestCase):
         request = self.factory.get(f"/blog/2024/first-post/?token={blog_token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         # Cookie should be set for the pattern, not the specific URL
         cookie_key = (
             "django_magic_authorization_blog%2F%3Cint%3Ayear%3E%2F%3Cstr%3Aslug%3E%2F"
@@ -286,10 +311,10 @@ class MiddlewareTokenValidationTests(TestCase):
             is_valid=True,
         )
 
-        # Access first post with token in URL - should set cookie
+        # Access first post with token in URL - should redirect and set cookie
         request = self.factory.get(f"/blog/2024/first-post/?token={blog_token.token}")
         response = self.middleware(request)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
         # Access different post with cookie only (no token in URL)
         request2 = self.factory.get("/blog/2025/second-post/")
@@ -360,7 +385,7 @@ class MiddlewareTokenValidationTests(TestCase):
         request = self.factory.get(f"/blog/2024/my-post/?token={valid_token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_middleware_dynamic_pattern_blocks_without_token(self):
         """Middleware should block dynamic patterns without token."""
@@ -487,11 +512,11 @@ class MiddlewareTokenValidationTests(TestCase):
             is_valid=True,
         )
 
-        # Private variant with valid token should work
+        # Private variant with valid token should redirect to strip token
         request = self.factory.get(f"/private/my-post/?token={valid_token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_middleware_protect_fn_with_complex_logic(self):
         """Middleware should handle protect_fn with complex conditional logic."""
@@ -566,7 +591,7 @@ class MiddlewareTokenValidationTests(TestCase):
         request = self.factory.get(f"/api/v1/secret/?token={token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     def test_middleware_blocks_deeply_nested_prefixed_path(self):
         """Middleware should block deeply nested prefixed paths without token."""
@@ -616,7 +641,7 @@ class MiddlewareTokenValidationTests(TestCase):
         request = self.factory.get(f"/api/v1/secret/?token={token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         cookie_key = "django_magic_authorization_api%2Fv1%2Fsecret%2F"
         self.assertIn(cookie_key, response.cookies)
 
@@ -781,7 +806,7 @@ class SettingsTests(TestCase):
         request = self.factory.get(f"/protected/?auth={self.valid_token.token}")
         response = self.middleware(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
 
     @override_settings(MAGIC_AUTHORIZATION={"TOKEN_PARAM": "auth"})
     def test_custom_token_param_ignores_default(self):
