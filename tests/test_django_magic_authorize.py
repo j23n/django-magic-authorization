@@ -219,6 +219,7 @@ class MiddlewareTokenValidationTests(TestCase):
         self.assertFalse(cookie["secure"])
         self.assertEqual(cookie["samesite"], "lax")
         self.assertEqual(cookie["max-age"], 60 * 60 * 24 * 365)  # 1 year
+        self.assertEqual(cookie["path"], "/protected/")
 
     def test_middleware_allows_access_with_valid_cookie(self):
         """Middleware should allow access with valid cookie (no token in URL)."""
@@ -274,6 +275,70 @@ class MiddlewareTokenValidationTests(TestCase):
         response = self.middleware(request)
 
         self.assertEqual(response.status_code, 200)
+
+    def test_middleware_cookie_path_static_pattern(self):
+        """Cookie path should be the full protected path for static patterns."""
+        request = self.factory.get(f"/protected/?token={self.valid_token.token}")
+        response = self.middleware(request)
+
+        cookie_key = "django_magic_authorization_protected%2F"
+        self.assertEqual(response.cookies[cookie_key]["path"], "/protected/")
+
+    def test_middleware_cookie_path_dynamic_pattern(self):
+        """Cookie path should be the static prefix for dynamic patterns."""
+        router = MagicAuthorizationRouter()
+        blog_pattern = RoutePattern("blog/<int:year>/<str:slug>/", name=None)
+        router.register("", blog_pattern)
+
+        blog_token = AccessToken.objects.create(
+            description="Blog token",
+            path="blog/<int:year>/<str:slug>/",
+            is_valid=True,
+        )
+
+        request = self.factory.get(f"/blog/2024/my-post/?token={blog_token.token}")
+        response = self.middleware(request)
+
+        cookie_key = (
+            "django_magic_authorization_blog%2F%3Cint%3Ayear%3E%2F%3Cstr%3Aslug%3E%2F"
+        )
+        self.assertEqual(response.cookies[cookie_key]["path"], "/blog/")
+
+    def test_middleware_cookie_path_fully_dynamic_pattern(self):
+        """Cookie path should be / when pattern starts with a dynamic segment."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("<str:visibility>/<str:post>/", name=None)
+        router.register("", pattern)
+
+        token = AccessToken.objects.create(
+            description="Dynamic token",
+            path="<str:visibility>/<str:post>/",
+            is_valid=True,
+        )
+
+        request = self.factory.get(f"/private/my-post/?token={token.token}")
+        response = self.middleware(request)
+
+        cookie_key = "django_magic_authorization_%3Cstr%3Avisibility%3E%2F%3Cstr%3Apost%3E%2F"
+        self.assertEqual(response.cookies[cookie_key]["path"], "/")
+
+    def test_middleware_cookie_path_prefixed_pattern(self):
+        """Cookie path should include the prefix for prefixed patterns."""
+        router = MagicAuthorizationRouter()
+        pattern = RoutePattern("secret/", name=None)
+        router.register("api/v1/", pattern)
+
+        token = AccessToken.objects.create(
+            description="Prefixed token",
+            path="api/v1/secret/",
+            is_valid=True,
+        )
+
+        request = self.factory.get(f"/api/v1/secret/?token={token.token}")
+        response = self.middleware(request)
+
+        cookie_key = "django_magic_authorization_api%2Fv1%2Fsecret%2F"
+        self.assertEqual(response.cookies[cookie_key]["path"], "/api/v1/secret/")
 
     def test_middleware_cookie_scoped_to_protected_path(self):
         """Middleware should scope cookie to protected_path pattern, not request.path."""

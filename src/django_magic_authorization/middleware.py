@@ -141,10 +141,18 @@ class MagicAuthorizationMiddleware:
         else:
             response = self.get_response(request)
 
+        # Scope cookie path to the static prefix of the protected pattern
+        dynamic_idx = protected_path.find("<")
+        if dynamic_idx == -1:
+            cookie_path = "/" + protected_path
+        else:
+            cookie_path = "/" + protected_path[:dynamic_idx]
+
         # Set the cookie for future auth
         response.set_cookie(
             key=cookie_key,
             value=user_token,
+            path=cookie_path,
             max_age=get_setting("COOKIE_MAX_AGE"),
             httponly=get_setting("COOKIE_HTTPONLY"),
             secure=get_setting("COOKIE_SECURE"),
