@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.urls import get_resolver
 from django.urls.resolvers import RoutePattern
 from django_magic_authorization.models import AccessToken
+from django_magic_authorization.settings import get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +107,9 @@ class MagicAuthorizationMiddleware:
             logger.debug(f"Access granted to {request.path}: not a protected path")
             return self.get_response(request)
 
-        cookie_key = f"django_magic_authorization_{quote(protected_path, safe='')}"
+        cookie_key = f"{get_setting('COOKIE_PREFIX')}{quote(protected_path, safe='')}"
 
-        user_token = request.GET.get("token") or request.COOKIES.get(cookie_key)
+        user_token = request.GET.get(get_setting("TOKEN_PARAM")) or request.COOKIES.get(cookie_key)
         if user_token is None:
             logger.info(f"Access denied to {request.path}: no token provided")
             return HttpResponseForbidden("Access denied: No token provided")
@@ -132,10 +133,10 @@ class MagicAuthorizationMiddleware:
         response.set_cookie(
             key=cookie_key,
             value=user_token,
-            max_age=60 * 60 * 24 * 365,
-            httponly=True,
-            secure=True,
-            samesite="lax",
+            max_age=get_setting("COOKIE_MAX_AGE"),
+            httponly=get_setting("COOKIE_HTTPONLY"),
+            secure=get_setting("COOKIE_SECURE"),
+            samesite=get_setting("COOKIE_SAMESITE"),
         )
 
         logger.debug(f"Access granted to {protected_path}")
