@@ -8,7 +8,7 @@ class AccessToken(models.Model):
 
     description = models.CharField(max_length=255, null=False, blank=False)
     path = models.CharField(max_length=255, null=False, blank=False)
-    token = models.CharField(default=gen_token, null=False, unique=True)
+    token = models.CharField(max_length=64, default=gen_token, null=False, unique=True)
 
     is_valid = models.BooleanField(default=True)
 

@@ -1,4 +1,3 @@
-import uuid
 import logging
 from urllib.parse import quote
 
@@ -119,7 +118,7 @@ class MagicAuthorizationMiddleware(object):
                 token=user_token, is_valid=True, path=protected_path
             )
         ).exists():
-            logger.info(f"Access denied to {request.path}: invalid token {user_token}")
+            logger.info(f"Access denied to {request.path}: invalid token provided")
             return HttpResponseForbidden("Access denied: Invalid token")
 
         # Update token stats
@@ -138,5 +137,5 @@ class MagicAuthorizationMiddleware(object):
             samesite="lax",
         )
 
-        logger.debug(f"Access granted to {protected_path} with token {user_token}")
+        logger.debug(f"Access granted to {protected_path}")
         return response
