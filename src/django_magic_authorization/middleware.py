@@ -2,7 +2,7 @@ import logging
 from urllib.parse import quote
 
 from django.http.response import HttpResponseForbidden, HttpResponseRedirect
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 from django.urls import get_resolver
 from django.urls.resolvers import RoutePattern
@@ -117,10 +117,13 @@ class MagicAuthorizationMiddleware:
             return HttpResponseForbidden("Access denied: No token provided")
 
         # Token validation
+        now = timezone.now()
         if not (
             db_token := AccessToken.objects.filter(
                 token=user_token, is_valid=True, path=protected_path
             )
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+            .filter(Q(max_uses__isnull=True) | Q(max_uses__gt=F("times_accessed")))
         ).exists():
             logger.info(f"Access denied to {request.path}: invalid token provided")
             return HttpResponseForbidden("Access denied: Invalid token")

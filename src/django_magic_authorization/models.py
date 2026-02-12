@@ -13,6 +13,8 @@ class AccessToken(models.Model):
     token = models.CharField(max_length=64, default=_gen_token, null=False, unique=True)
 
     is_valid = models.BooleanField(default=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True, null=False, blank=False)
     times_accessed = models.IntegerField(default=0)

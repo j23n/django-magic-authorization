@@ -31,6 +31,8 @@ class AccessTokenAdmin(admin.ModelAdmin):
         "description",
         "display_path",
         "is_valid",
+        "expires_at",
+        "max_uses",
         "access_link",
         "created_at",
         "last_accessed",
@@ -44,7 +46,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
         "access_link",
     )
     form = AccessTokenForm
-    list_filter = ["is_valid", "created_at"]
+    list_filter = ["is_valid", "created_at", "expires_at"]
     search_fields = ["description", "path"]
 
     def changelist_view(self, request, extra_context=None):
