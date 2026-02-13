@@ -1,3 +1,8 @@
+"""Configuration defaults and accessor for django-magic-authorization.
+
+All user-facing settings are read from ``settings.MAGIC_AUTHORIZATION``.
+"""
+
 from django.conf import settings
 
 DEFAULTS = {
@@ -13,6 +18,7 @@ DEFAULTS = {
 
 
 def get_setting(name):
+    """Return the value of *name* from user settings, falling back to DEFAULTS."""
     user_settings = getattr(settings, "MAGIC_AUTHORIZATION", {})
     if name in user_settings:
         return user_settings[name]

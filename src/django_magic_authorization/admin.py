@@ -26,6 +26,12 @@ class AccessTokenForm(forms.ModelForm):
 
 
 class AccessTokenAdmin(admin.ModelAdmin):
+    """Admin interface for managing access tokens.
+
+    Provides a dropdown of registered protected paths, displays computed
+    access links, and flags tokens whose paths no longer match a route.
+    """
+
     date_hierarchy = "created_at"
     list_display = (
         "description",

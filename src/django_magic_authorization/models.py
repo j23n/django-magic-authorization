@@ -7,6 +7,12 @@ def _gen_token():
 
 
 class AccessToken(models.Model):
+    """A token that grants access to a protected URL path.
+
+    Tokens are generated automatically using ``secrets.token_urlsafe(32)``.
+    They can be constrained by expiration time (``expires_at``) and usage
+    count (``max_uses``), and revoked by setting ``is_valid`` to ``False``.
+    """
 
     description = models.CharField(max_length=255, null=False, blank=False)
     path = models.CharField(max_length=255, null=False, blank=False)

@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 class MagicAuthorizationRouter:
+    """Singleton registry of protected URL patterns.
+
+    Collects all routes marked with ``protected_path`` and exposes them
+    to the middleware for request-time matching.
+    """
+
     _instance = None
 
     def __new__(cls):
@@ -41,7 +47,7 @@ class MagicAuthorizationRouter:
         There are two "patterns" to deal with here. The first is the URLPattern,
         the other the RoutePattern. The latter is the url string: "/home" or
         "/blog/<int:year>/<str:slug>". It is contained within the first, which also
-        includes the view and possibly a namespace."
+        includes the view and possibly a namespace.
         """
         for upattern in url_patterns:
             # check if we're dealing with a URLResolver
@@ -67,12 +73,24 @@ class MagicAuthorizationRouter:
 
 
 def discover_protected_paths():
+    """Walk the root URL configuration and register all protected paths.
+
+    Called automatically from ``AppConfig.ready()``.
+    """
     router = MagicAuthorizationRouter()
     resolver = get_resolver()
     router.walk_patterns(resolver.url_patterns)
 
 
 class MagicAuthorizationMiddleware:
+    """Django middleware that enforces token-based access control.
+
+    For each incoming request, checks whether the path matches a registered
+    protected pattern. If it does, validates the token from the query string
+    or cookie. Grants access on success (setting a scoped cookie) or returns
+    a 403 response.
+    """
+
     def __init__(self, get_response):
         self.get_response = get_response
 
