@@ -3,11 +3,14 @@ from urllib.parse import quote
 
 from django.http.response import HttpResponseForbidden, HttpResponseRedirect
 from django.db.models import F, Q
+from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.module_loading import import_string
 from django.urls import get_resolver
 from django.urls.resolvers import RoutePattern
 from django_magic_authorization.models import AccessToken
 from django_magic_authorization.settings import get_setting
+from django_magic_authorization.signals import access_denied, access_granted
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,29 @@ class MagicAuthorizationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    def _deny(self, request, reason):
+        access_denied.send(
+            sender=None, request=request, path=request.path, reason=reason
+        )
+
+        handler_path = get_setting("FORBIDDEN_HANDLER")
+        if handler_path:
+            handler = import_string(handler_path)
+            return handler(request, request.path)
+
+        template_name = get_setting("FORBIDDEN_TEMPLATE")
+        if template_name:
+            content = render_to_string(
+                template_name, {"path": request.path}, request=request
+            )
+            return HttpResponseForbidden(content)
+
+        messages = {
+            "no_token": "Access denied: No token provided",
+            "invalid_token": "Access denied: Invalid token",
+        }
+        return HttpResponseForbidden(messages.get(reason, "Access denied"))
+
     def __call__(self, request):
         reg = MagicAuthorizationRouter()._registry
 
@@ -114,7 +140,7 @@ class MagicAuthorizationMiddleware:
         user_token = query_token or request.COOKIES.get(cookie_key)
         if user_token is None:
             logger.info(f"Access denied to {request.path}: no token provided")
-            return HttpResponseForbidden("Access denied: No token provided")
+            return self._deny(request, "no_token")
 
         # Token validation
         now = timezone.now()
@@ -126,11 +152,18 @@ class MagicAuthorizationMiddleware:
             .filter(Q(max_uses__isnull=True) | Q(max_uses__gt=F("times_accessed")))
         ).exists():
             logger.info(f"Access denied to {request.path}: invalid token provided")
-            return HttpResponseForbidden("Access denied: Invalid token")
+            return self._deny(request, "invalid_token")
 
         # Update token stats
         db_token.update(
             last_accessed=timezone.now(), times_accessed=F("times_accessed") + 1
+        )
+
+        access_granted.send(
+            sender=AccessToken,
+            request=request,
+            token=db_token.first(),
+            path=protected_path,
         )
 
         if query_token:

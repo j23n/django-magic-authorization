@@ -7,6 +7,8 @@ DEFAULTS = {
     "COOKIE_HTTPONLY": True,
     "COOKIE_PREFIX": "django_magic_authorization_",
     "TOKEN_PARAM": "token",
+    "FORBIDDEN_TEMPLATE": None,
+    "FORBIDDEN_HANDLER": None,
 }
 
 
