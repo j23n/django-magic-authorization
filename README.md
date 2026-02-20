@@ -277,3 +277,39 @@ MAGIC_AUTHORIZATION = {
   preventing token leakage in browser history and referrer headers.
 - Auth cookies are `HttpOnly` and `SameSite=lax` by default.
 - Tokens are generated with `secrets.token_urlsafe(32)` (256 bits of entropy).
+
+## 🤖 AI Disclaimer
+
+This project uses AI-assisted development tools. See the [AI usage policy](https://j23n.com/public/posts/2026/my-ai-policy) for details.
+
+**Tools**
+
+- Claude Code (Anthropic) · `claude-sonnet-4-6` · Agentic
+
+### Contribution Profile
+
+```
+Phase                               Human│ AI
+─────────────────────────────────────────┼───────────────
+Requirements & Scope       95% ██████████│             5%
+Architecture & Design      85%   ████████│░░          15%
+Implementation             40%       ████│░░░░░░      60%
+Testing                    20%         ██│░░░░░░░░    80%
+Documentation               5%           │░░░░░░░░░░  95%
+```
+
+**Oversight**: Collaborative
+
+Human and AI co-author decisions; human reviews all output.
+
+### Process
+
+AI agent operated autonomously across multi-step tasks. Human reviewed diffs, resolved conflicts, and approved merges.
+
+### Accountability
+
+The human author(s) are solely responsible for the content, accuracy, and fitness-for-purpose of this project.
+
+---
+*Last updated: 2026-02-20 · Generated with [ai-disclaimer](https://github.com/j23n/ai-disclaimer)*
+
